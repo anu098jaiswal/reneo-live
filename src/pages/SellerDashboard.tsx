@@ -35,6 +35,7 @@ export default function SellerDashboard() {
       .from('products')
       .select('*')
       .eq('seller_id', profile.id)
+      .neq('status', 'deleted')
       .order('created_at', { ascending: false })
 
     if (fetchError) {
@@ -84,10 +85,18 @@ export default function SellerDashboard() {
       .eq('id', productId)
 
     if (deleteError) {
-      setError('Could not delete product.')
-    } else {
-      loadProducts()
+      // If hard delete fails due to FK constraint from past live sessions, mark status as deleted
+      const { error: updateError } = await supabase
+        .from('products')
+        .update({ status: 'deleted' })
+        .eq('id', productId)
+
+      if (updateError) {
+        setError('Could not delete product.')
+        return
+      }
     }
+    loadProducts()
   }
 
   if (liveSession) {
