@@ -12,7 +12,7 @@ interface CartContextType {
   loading: boolean
   error: string
   total: number
-  addToCart: (product: Product) => Promise<void>
+  addToCart: (product: Product, quantity?: number) => Promise<void>
   updateQuantity: (lineId: string, quantity: number) => Promise<void>
   removeFromCart: (lineId: string) => Promise<void>
   clearCart: () => Promise<void>
@@ -54,19 +54,21 @@ export function CartProvider({ children }: { children: ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile?.id])
 
-  async function addToCart(product: Product) {
+  async function addToCart(product: Product, quantityToAdd: number = 1) {
     if (!profile) return
     setError('')
+    const qty = Math.max(1, Math.min(quantityToAdd, product.stock))
     const existing = lines.find(l => l.product_id === product.id)
 
     if (existing) {
-      await updateQuantity(existing.id, existing.quantity + 1)
+      const newQty = Math.min(existing.quantity + qty, product.stock)
+      await updateQuantity(existing.id, newQty)
       return
     }
 
     const { error: insertError } = await supabase
       .from('cart_items')
-      .insert({ customer_id: profile.id, product_id: product.id, quantity: 1 })
+      .insert({ customer_id: profile.id, product_id: product.id, quantity: qty })
 
     if (insertError) {
       setError('Could not add item to cart.')

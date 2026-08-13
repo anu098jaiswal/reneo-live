@@ -18,6 +18,14 @@ export default function Chat({ sessionId }: Props) {
   const [error, setError] = useState('')
   const bottomRef = useRef<HTMLDivElement>(null)
 
+  const userNamesRef = useRef<Record<string, string>>({})
+
+  useEffect(() => {
+    if (profile) {
+      userNamesRef.current[profile.id] = profile.name
+    }
+  }, [profile])
+
   useEffect(() => {
     let cancelled = false
 
@@ -33,6 +41,11 @@ export default function Chat({ sessionId }: Props) {
         return
       }
       if (!cancelled && data) {
+        data.forEach((m: any) => {
+          if (m.user_id && m.profiles?.name) {
+            userNamesRef.current[m.user_id] = m.profiles.name
+          }
+        })
         setMessages(
           data.map((m: any) => ({ ...m, senderName: m.profiles?.name ?? 'User' }))
         )
@@ -47,8 +60,28 @@ export default function Chat({ sessionId }: Props) {
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: `session_id=eq.${sessionId}` },
-        payload => {
-          setMessages(prev => [...prev, payload.new as DisplayMessage])
+        async payload => {
+          const newMsg = payload.new as ChatMessage
+          let senderName = userNamesRef.current[newMsg.user_id]
+
+          if (!senderName) {
+            const { data: pData } = await supabase
+              .from('profiles')
+              .select('name')
+              .eq('id', newMsg.user_id)
+              .single()
+            if (pData?.name) {
+              senderName = pData.name
+              userNamesRef.current[newMsg.user_id] = pData.name
+            } else {
+              senderName = 'User'
+            }
+          }
+
+          setMessages(prev => {
+            if (prev.some(m => m.id === newMsg.id)) return prev
+            return [...prev, { ...newMsg, senderName }]
+          })
         }
       )
       .subscribe()

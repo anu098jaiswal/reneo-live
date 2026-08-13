@@ -87,13 +87,16 @@ export default function LiveSeller({ sessionId, product, onEnded }: Props) {
     presenceChannel
       .on("presence", { event: "sync" }, () => {
         const state = presenceChannel.presenceState();
-        const viewerKeys = Object.keys(state).filter(
-          (k) => {
-            const presences = state[k] as any[];
-            return !presences.some((p) => p.role === "host" || p.user_id === profile?.id);
-          }
-        );
-        setViewerCount(viewerKeys.length);
+        const viewerIds = new Set<string>();
+        Object.keys(state).forEach((k) => {
+          const presences = state[k] as any[];
+          presences.forEach((p) => {
+            if (p.role !== "host" && p.user_id && p.user_id !== profile?.id) {
+              viewerIds.add(p.user_id);
+            }
+          });
+        });
+        setViewerCount(viewerIds.size);
       })
       .subscribe(async (status) => {
         if (status === "SUBSCRIBED" && profile) {

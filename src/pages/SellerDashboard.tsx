@@ -75,6 +75,21 @@ export default function SellerDashboard() {
     setLiveSession({ sessionId: data.id, product })
   }
 
+  async function deleteProduct(productId: string) {
+    if (!window.confirm('Are you sure you want to delete this product?')) return
+    setError('')
+    const { error: deleteError } = await supabase
+      .from('products')
+      .delete()
+      .eq('id', productId)
+
+    if (deleteError) {
+      setError('Could not delete product.')
+    } else {
+      loadProducts()
+    }
+  }
+
   if (liveSession) {
     return (
       <LiveSeller
@@ -122,9 +137,17 @@ export default function SellerDashboard() {
               <h4>{product.name}</h4>
               <p>₹{product.price}</p>
               <p className="stock">{product.stock} in stock</p>
-              <button onClick={() => goLive(product)} disabled={!online || product.stock === 0}>
-                Go Live
-              </button>
+              <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+                <button onClick={() => goLive(product)} disabled={!online || product.stock === 0}>
+                  Go Live
+                </button>
+                <button
+                  onClick={() => deleteProduct(product.id)}
+                  style={{ background: '#ef4444', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer' }}
+                >
+                  Delete
+                </button>
+              </div>
             </div>
           ))}
         </div>

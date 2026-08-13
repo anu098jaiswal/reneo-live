@@ -29,6 +29,7 @@ export default function LiveCustomer({ session, onLeave }: Props) {
   const [showProductPanel, setShowProductPanel] = useState(false);
   const [showCart, setShowCart] = useState(false);
   const [addedFlash, setAddedFlash] = useState(false);
+  const [selectedQty, setSelectedQty] = useState(1);
 
   // Load the product being presented, and error out clearly if it's gone.
   useEffect(() => {
@@ -124,11 +125,21 @@ export default function LiveCustomer({ session, onLeave }: Props) {
     const presenceChannel = supabase.channel(`presence:${session.id}`);
     presenceChannel
       .on("presence", { event: "sync" }, () => {
-        setViewerCount(Object.keys(presenceChannel.presenceState()).length);
+        const state = presenceChannel.presenceState();
+        const viewerIds = new Set<string>();
+        Object.keys(state).forEach((k) => {
+          const presences = state[k] as any[];
+          presences.forEach((p) => {
+            if (p.role !== "host" && p.user_id && p.user_id !== session.host_id) {
+              viewerIds.add(p.user_id);
+            }
+          });
+        });
+        setViewerCount(viewerIds.size);
       })
       .subscribe(async (status) => {
         if (status === "SUBSCRIBED" && profile) {
-          await presenceChannel.track({ user_id: profile.id });
+          await presenceChannel.track({ user_id: profile.id, role: "audience" });
         }
       });
 
@@ -142,7 +153,7 @@ export default function LiveCustomer({ session, onLeave }: Props) {
 
   function handleAddToCart() {
     if (!product) return;
-    addToCart(product);
+    addToCart(product, selectedQty);
     setAddedFlash(true);
     setTimeout(() => setAddedFlash(false), 1500);
   }
@@ -201,7 +212,41 @@ export default function LiveCustomer({ session, onLeave }: Props) {
               <p>{product.description}</p>
               <p className="price">₹{product.price}</p>
               <p className="stock">{product.stock} in stock</p>
-              {addedFlash && <p className="added-flash">Added to cart</p>}
+
+              {product.stock > 0 && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: '12px 0' }}>
+                  <label>Quantity:</label>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedQty((q) => Math.max(1, q - 1))}
+                    disabled={selectedQty <= 1}
+                  >
+                    -
+                  </button>
+                  <input
+                    type="number"
+                    value={selectedQty}
+                    min={1}
+                    max={product.stock}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value, 10);
+                      if (!isNaN(val)) {
+                        setSelectedQty(Math.max(1, Math.min(val, product.stock)));
+                      }
+                    }}
+                    style={{ width: '50px', textAlign: 'center' }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setSelectedQty((q) => Math.min(product.stock, q + 1))}
+                    disabled={selectedQty >= product.stock}
+                  >
+                    +
+                  </button>
+                </div>
+              )}
+
+              {addedFlash && <p className="added-flash">Added {selectedQty} to cart</p>}
               <button onClick={handleAddToCart} disabled={product.stock === 0}>
                 {product.stock === 0 ? "Out of stock" : "Add to cart"}
               </button>
