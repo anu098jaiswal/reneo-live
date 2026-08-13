@@ -4,7 +4,7 @@ A working slice of live commerce: a seller streams a product, customers watch, c
 
 ## Demo
 
-**Deployed URL:** [Your deployed URL here]
+**Deployed URL:** [https://reneo-live-q82y.vercel.app/]
 **Demo Accounts:**
 
 - **Seller:** seller@demo.com / password123
@@ -219,8 +219,8 @@ Agora's SFU scales viewer fan-out independently of this app, so the video layer 
 
 ## Deliverables Checklist
 
-- [x] GitHub repository with real commit history
-- [x] README.md covering: setup, environment variables, Supabase schema, RLS policies, architecture, technical choices, known limitations, Part C answers
-- [ ] Deployed URL (needs to be added)
-- [ ] Demo accounts (seller@demo.com / password123, customer@demo.com / password123 — needs to be created)
-- [ ] 3-5 minute demo video (needs to be recorded)
+-  [1]GitHub repository with real commit history
+- [2] README.md covering: setup, environment variables, Supabase schema, RLS policies, architecture, technical choices, known limitations, Part C answers
+- [ 3] Deployed URL 
+- [4 ] Demo accounts (seller@demo.com / password123, customer@demo.com / password123 — needs to be created)
+- [ 5] 3-5 minute demo video (needs to be recorded)
