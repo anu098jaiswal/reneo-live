@@ -15,6 +15,7 @@ interface CartContextType {
   addToCart: (product: Product) => Promise<void>
   updateQuantity: (lineId: string, quantity: number) => Promise<void>
   removeFromCart: (lineId: string) => Promise<void>
+  clearCart: () => Promise<void>
   refresh: () => Promise<void>
 }
 
@@ -44,7 +45,12 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }
 
   useEffect(() => {
-    if (profile) refresh()
+    if (profile) {
+      refresh()
+    } else {
+      setLines([])
+      setError('')
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile?.id])
 
@@ -97,11 +103,26 @@ export function CartProvider({ children }: { children: ReactNode }) {
     await refresh()
   }
 
+  async function clearCart() {
+    if (!profile) return
+    setError('')
+    const { error: deleteError } = await supabase
+      .from('cart_items')
+      .delete()
+      .eq('customer_id', profile.id)
+
+    if (deleteError) {
+      setError('Could not clear cart.')
+      return
+    }
+    setLines([])
+  }
+
   const total = lines.reduce((sum, l) => sum + l.quantity * (l.product?.price ?? 0), 0)
 
   return (
     <CartContext.Provider
-      value={{ lines, loading, error, total, addToCart, updateQuantity, removeFromCart, refresh }}
+      value={{ lines, loading, error, total, addToCart, updateQuantity, removeFromCart, clearCart, refresh }}
     >
       {children}
     </CartContext.Provider>
