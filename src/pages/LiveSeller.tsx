@@ -82,20 +82,43 @@ export default function LiveSeller({ sessionId, product, onEnded }: Props) {
 
     start();
 
-    // Presence channel tracks viewer count in real time.
+    // Presence channel tracks viewer count in real time and broadcasts host presence.
     const presenceChannel = supabase.channel(`presence:${sessionId}`);
     presenceChannel
       .on("presence", { event: "sync" }, () => {
         const state = presenceChannel.presenceState();
         const viewerKeys = Object.keys(state).filter(
-          (k) => k !== `host-${profile?.id}`,
+          (k) => {
+            const presences = state[k] as any[];
+            return !presences.some((p) => p.role === "host" || p.user_id === profile?.id);
+          }
         );
         setViewerCount(viewerKeys.length);
       })
-      .subscribe();
+      .subscribe(async (status) => {
+        if (status === "SUBSCRIBED" && profile) {
+          await presenceChannel.track({ user_id: profile.id, role: "host" });
+        }
+      });
+
+    const handleUnload = () => {
+      supabase
+        .from("live_sessions")
+        .update({ status: "ended" })
+        .eq("id", sessionId)
+        .then(() => {});
+    };
+
+    window.addEventListener("beforeunload", handleUnload);
 
     return () => {
       cancelled = true;
+      window.removeEventListener("beforeunload", handleUnload);
+      supabase
+        .from("live_sessions")
+        .update({ status: "ended" })
+        .eq("id", sessionId)
+        .then(() => {});
       supabase.removeChannel(presenceChannel);
       leaveChannel(clientRef.current, tracksRef.current ?? undefined);
     };

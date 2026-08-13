@@ -26,11 +26,55 @@ export default function CustomerFeed() {
 
     if (fetchError) {
       setError('Could not load live sessions.')
-    } else {
-      setSessions(
-        (data ?? []).map((s: any) => ({ ...s, sellerName: s.host?.name ?? 'Seller' }))
-      )
+      setLoading(false)
+      return
     }
+
+    const rawList = data ?? []
+    const seenHosts = new Set<string>()
+    const latestSessions: any[] = []
+    const staleSessionIdsToClose: string[] = []
+
+    for (const session of rawList) {
+      if (!seenHosts.has(session.host_id)) {
+        // Keep only the most recent live session per host
+        seenHosts.add(session.host_id)
+        latestSessions.push(session)
+      } else {
+        // Older live sessions from the same host are stale duplicates
+        staleSessionIdsToClose.push(session.id)
+      }
+    }
+
+    // Clean up duplicate old sessions in background
+    if (staleSessionIdsToClose.length > 0) {
+      supabase
+        .from('live_sessions')
+        .update({ status: 'ended' })
+        .in('id', staleSessionIdsToClose)
+        .then(() => {})
+    }
+
+    // Filter out sessions created more than 15 minutes ago (abandoned streams)
+    const now = Date.now()
+    const validSessions: any[] = []
+
+    for (const session of latestSessions) {
+      const createdAt = new Date(session.created_at).getTime()
+      if (now - createdAt > 15 * 60 * 1000) {
+        supabase
+          .from('live_sessions')
+          .update({ status: 'ended' })
+          .eq('id', session.id)
+          .then(() => {})
+      } else {
+        validSessions.push(session)
+      }
+    }
+
+    setSessions(
+      validSessions.map((s: any) => ({ ...s, sellerName: s.host?.name ?? 'Seller' }))
+    )
     setLoading(false)
   }
 

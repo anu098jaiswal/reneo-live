@@ -18,6 +18,15 @@ export default function SellerDashboard() {
     null
   )
 
+  async function cleanupOrphanedSessions() {
+    if (!profile) return
+    await supabase
+      .from('live_sessions')
+      .update({ status: 'ended' })
+      .eq('host_id', profile.id)
+      .eq('status', 'live')
+  }
+
   async function loadProducts() {
     if (!profile) return
     setLoading(true)
@@ -37,6 +46,7 @@ export default function SellerDashboard() {
   }
 
   useEffect(() => {
+    cleanupOrphanedSessions()
     loadProducts()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile?.id])
@@ -44,6 +54,14 @@ export default function SellerDashboard() {
   async function goLive(product: Product) {
     if (!profile) return
     setError('')
+
+    // Ensure any previous live sessions for this host are ended first
+    await supabase
+      .from('live_sessions')
+      .update({ status: 'ended' })
+      .eq('host_id', profile.id)
+      .eq('status', 'live')
+
     const { data, error: insertError } = await supabase
       .from('live_sessions')
       .insert({ host_id: profile.id, product_id: product.id, status: 'live' })
